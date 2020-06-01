@@ -1,2 +1,1 @@
-# Image Processing  
-Learning OpenCV
+# OpenCv
