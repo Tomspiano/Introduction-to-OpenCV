@@ -4,44 +4,59 @@ import urllib.request
 import os
 import cv2
 import numpy as np
-from imageCrawler_Bing import crawler
+from imageCrawler_Baidu import Crawler
 
 
-def store_raw_images(name, size, num, path='./img'):
-    dest = path + '/../' + name + '.txt'
-    crawler().get_image_link_file(name, num, dest)
-    with open(dest, 'r') as f:
-        img_link_urls = f.read()
-
-    if not os.path.exists(path):
-        os.mkdir(path)
+def download(links, path, name):
+    with open(links, 'r') as f:
+        img_urls = f.read()
 
     pic_num = 1
 
-    for i in img_link_urls.split('\n'):
+    urls = img_urls.split('\n')
+    for i in urls:
         try:
-            img_name = path + '/' + name + '-' + str(pic_num) + '.jpg'
+            img_name = path + '/' + str(pic_num) + '.jpg'
             urllib.request.urlretrieve(i, img_name)
-            time.sleep(0.2)
 
             pic_num += 1
 
-        except Exception as e:
-            time.sleep(1)
-            print('%s failed: %s' % ('number ' + str(pic_num), str(e)))
+        except:
+            if i != urls[-1]:
+                print('%s: %s failed: '%(name, 'number ' + str(pic_num)))
+                time.sleep(1)
 
-    time.sleep(60)
+    time.sleep(30)
+    print('%s images saved'%name)
 
+
+def resize_img(path, size):
     for image in os.listdir(path):
         try:
-            img = cv2.imread(path + image)
-            resized_img = cv2.resize(img, (size, size))
-            cv2.imwrite(path + image, resized_img)
+            img = cv2.imread(os.path.join(path, image))
+            resized_img = cv2.resize(img, size)
+            cv2.imwrite(os.path.join(path, image), resized_img)
 
-        except Exception as e:
-            print('delete %s' % image)
-            print(str(e))
-            os.remove(path + image)
+        except:
+            # input()
+            print('delete %s: '%image)
+            os.remove(path + '/' + image)
+
+
+def store_raw_images(name, size, num, path='./img'):
+    if not os.path.exists(path):
+        os.mkdir(path)
+
+    dest = path + '/../link/'
+    if not os.path.exists(dest):
+        os.mkdir(dest)
+    dest = dest + name + '.txt'
+
+    Crawler().get_image_link_file(name, num, dest)
+
+    download(dest, path, name)
+
+    resize_img(os.path.join(os.getcwd(), path), size)
 
 
 def find_uglies(paths, samples):
@@ -54,31 +69,31 @@ def find_uglies(paths, samples):
                     question = cv2.imread(curr)
 
                     if ugly_img.shape == question.shape and not (np.bitwise_xor(ugly_img, question).any()):
-                        print('delete %s' % curr)
+                        print('delete %s'%curr)
                         os.remove(curr)
 
-                except Exception as e:
-                    print('Error on %s: %s' % (curr, str(e)))
+                except:
+                    print('Error on %s: '%curr)
 
 
-def create_list(paths, dest):
+def create_list(paths, pos_size):
     for path in paths:
         for img in os.listdir(path):
-            if path[-3:] == 'neg':
-                line = path + '/' + img + '\n'
-                with open(dest + '/bg.txt', 'a') as f:
-                    f.write(line)
+            if path.find('neg') >= 0:
+                line = os.path.basename(path) + '/' + img + '\n'
+                with open(path + '/../bg.txt', 'a', newline='\n') as f1:
+                    f1.write(line)
 
-            elif path[-3:] == 'pos':
-                line = path + '/' + img + ' 1 0 0 50 50\n'
-                with open(dest + '/info.dat', 'a') as f:
-                    f.write(line)
+            elif path.find('pos') >= 0:
+                line = img + ' 1 0 0 ' + str(pos_size[0]) + ' ' + str(pos_size[1]) + '\n'
+                with open(path + '/info.dat', 'a', newline='\n') as f2:
+                    f2.write(line)
 
 
 def main():
     path = './training'
-    # dest = [path + '/' + 'neg', path + '/' + 'pos']
-    dest = [path + '/neg-1']
+    dest = [path + '/neg-1', path + '/pos-1']
+    # dest = [path + '/neg-1']
 
     if os.path.exists(path):
         pattern = r'\d+$'
@@ -87,7 +102,7 @@ def main():
         for i in os.listdir(path):
             if not os.path.isdir(i):
                 continue
-            tmp = eval(re.findall(pattern, i)[0])
+            tmp = eval(re.findall(pattern, i)[-1])
             if tmp > n:
                 n = tmp
 
@@ -99,35 +114,57 @@ def main():
         os.mkdir(path)
 
     for i in dest:
-        os.mkdir(i)
+        if not os.path.exists(i):
+            os.mkdir(i)
 
-    name1 = input('What object do you want to recognize: ')
-    # num = input('How many images do you want to download at least: ')
-    name2 = input('Where is your object most unlikely to appear: ')
-    num = input('How many images do you want to download at least: ')
+    '''''
+    name1 = input('What object do you want to recognize: ')  # 地球仪摆件
+    num1 = input('How many: ')  # 5000
+    w1 = input('width: ')  # 150
+    h1 = input('height: ')  # 150
+    size1 = (eval(w1), eval(h1))
 
+    name2 = input('Where is your object most unlikely to appear: ')  # 运动会
+    num2 = input('How many: ')  # 10000
+    w2 = input('width: ')  # 300
+    h2 = input('height: ')  # 300
+    size2 = (eval(w2), eval(h2))
+    '''
+
+    info = input('Where is images\' info: ')
+    with open(info) as f:
+        img_info = f.readlines()
+
+    name1, num1, w1, h1 = img_info[0].split()
+    name2, num2, w2, h2 = img_info[1].split()
+    size1 = (eval(w1), eval(h1))
+    size2 = (eval(w2), eval(h2))
+
+    '''''
     pos = input('Please input one url of positive image: ')
     urllib.request.urlretrieve(pos, path + '/' + name1 + '.jpg')
     img = cv2.imread(path + '/' + name1 + '.jpg')
     resized_img = cv2.resize(img, (50, 50))
     cv2.imwrite(path + '/' + name1 + '.jpg', resized_img)
+    '''
 
-    # num1 = eval(num)
-    # store_raw_images(name1, 50, num1, dest[1])
-    num2 = eval(num)
-    store_raw_images(name2, 100, num2, dest[0])
+    store_raw_images(name1, size1, eval(num1), dest[1])
+    store_raw_images(name2, size2, eval(num2), dest[0])
 
+    '''''
     samples = path + '/uglies'
     os.mkdir(samples)
-
+    '''
     while True:
-        response = input('Please copy unqualified image(s) to %s (done)?' % samples)
+        response = input('Delete unqualified image(s) [done]?')
         if response == 'done':
             break
+    '''''
+    if os.listdir(samples):
+        find_uglies(dest, samples)
+    '''
 
-    find_uglies(dest, samples)
-
-    create_list(dest, path)
+    create_list(dest, size1)
 
 
 if __name__ == '__main__':
