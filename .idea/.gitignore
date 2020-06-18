@@ -1,7 +1,7 @@
 # Default ignored files
 /shelf/
 /workspace.xml
-../.idea
+
 ../learning/haarcascades/__pycache__/
 ../learning/path-test.py
 ../learning/haarcascades/imageDebug.py
